@@ -17,6 +17,6 @@ RUN uv sync --locked
 #Activate venv by adding to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
-Expose 8000
+EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

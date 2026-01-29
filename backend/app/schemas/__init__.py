@@ -4,6 +4,12 @@ from app.schemas.configuration import (
     ConfigurationUpdate,
     ConfigurationResponse,
 )
+from app.schemas.assembly import (
+    AssemblyCreate,
+    AssemblyUpdate,
+    AssemblyResponse,
+    AssemblyComponentResponse,
+)
 
 __all__ = [
     "ItemCreate",
@@ -12,4 +18,8 @@ __all__ = [
     "ConfigurationCreate",
     "ConfigurationUpdate",
     "ConfigurationResponse",
+    "AssemblyCreate",
+    "AssemblyUpdate",
+    "AssemblyResponse",
+    "AssemblyComponentResponse",
 ]

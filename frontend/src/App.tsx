@@ -1,12 +1,23 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import { DashboardPage } from "@/pages/Dashboard";
+import { ItemsPage } from "@/pages/Items";
+import { AssembliesPage } from "@/pages/Assemblies";
+import { ConfigurationsPage } from "@/pages/Configurations";
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center gap-4">
-      <h1 className="text-3xl font-bold text-blue-600">inv-sys</h1>
-      <Button>Click me</Button>
-    </div>
-  )
+    <BrowserRouter>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/items" element={<ItemsPage />} />
+          <Route path="/assemblies" element={<AssembliesPage />} />
+          <Route path="/configurations" element={<ConfigurationsPage />} />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

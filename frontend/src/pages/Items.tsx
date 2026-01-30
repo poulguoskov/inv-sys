@@ -17,7 +17,7 @@ export function ItemsPage() {
       const data = await api.getItems();
       setItems(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError("Failed to load items");
     } finally {
       setLoading(false);
@@ -33,7 +33,7 @@ export function ItemsPage() {
     try {
       await api.deleteItem(id);
       setItems(items.filter((item) => item.id !== id));
-    } catch (err) {
+    } catch {
       setError("Failed to delete item");
     }
   };

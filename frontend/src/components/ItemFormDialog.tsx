@@ -87,7 +87,7 @@ export function ItemFormDialog({
       }
       onSuccess();
       onOpenChange(false);
-    } catch (err) {
+    } catch {
       setError(isEditing ? "Failed to update item" : "Failed to create item");
     } finally {
       setLoading(false);

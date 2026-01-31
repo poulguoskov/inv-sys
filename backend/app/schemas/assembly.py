@@ -25,6 +25,7 @@ class AssemblyBase(BaseModel):
     """Shared fields for assemblies."""
 
     configuration_id: int | None = None
+    order_reference: str | None = None
     notes: str | None = None
 
 
@@ -37,6 +38,7 @@ class AssemblyCreate(AssemblyBase):
 class AssemblyUpdate(BaseModel):
     """Fields for updating an assembly."""
 
+    order_reference: str | None = None
     notes: str | None = None
 
 
@@ -47,6 +49,7 @@ class AssemblyResponse(AssemblyBase):
     status: str
     created_at: datetime
     completed_at: datetime | None = None
+    shipped_at: datetime | None = None
     components: list[AssemblyComponentResponse] = []
 
     class Config:

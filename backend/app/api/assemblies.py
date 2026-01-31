@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.models import Assembly, AssemblyComponent, Item, ConfigurationComponent
 from app.schemas.assembly import (
     AssemblyCreate,
+    AssemblyUpdate,
     AssemblyResponse,
     AssemblyComponentResponse,
     AssemblyComponentBase,
@@ -42,17 +43,68 @@ def get_assembly_with_components(db: Session, assembly_id: int) -> dict | None:
         "id": assembly.id,
         "configuration_id": assembly.configuration_id,
         "status": assembly.status,
+        "order_reference": assembly.order_reference,
         "notes": assembly.notes,
         "created_at": assembly.created_at,
         "completed_at": assembly.completed_at,
+        "shipped_at": assembly.shipped_at,
         "components": components,
     }
 
 
+@router.get("/stats/build-capacity")
+def get_build_capacity(db: Session = Depends(get_db)):
+    """Calculate how many of each configuration can be built with current stock."""
+    from app.models import Configuration
+
+    configurations = db.query(Configuration).all()
+    result = []
+
+    for config in configurations:
+        config_components = (
+            db.query(ConfigurationComponent)
+            .filter(ConfigurationComponent.configuration_id == config.id)
+            .all()
+        )
+
+        if not config_components:
+            result.append(
+                {
+                    "configuration_id": config.id,
+                    "configuration_name": config.name,
+                    "can_build": 0,
+                }
+            )
+            continue
+
+        # Find minimum builds possible based on available stock
+        min_builds = float("inf")
+        for cc in config_components:
+            item = db.query(Item).filter(Item.id == cc.item_id).first()
+            if not item or cc.quantity == 0:
+                min_builds = 0
+                break
+            builds_possible = item.quantity_available // cc.quantity
+            min_builds = min(min_builds, builds_possible)
+
+        result.append(
+            {
+                "configuration_id": config.id,
+                "configuration_name": config.name,
+                "can_build": int(min_builds) if min_builds != float("inf") else 0,
+            }
+        )
+
+    return result
+
+
 @router.get("/", response_model=list[AssemblyResponse])
-def list_assemblies(db: Session = Depends(get_db)):
-    """Get all assemblies."""
-    assemblies = db.query(Assembly).all()
+def list_assemblies(status: str | None = None, db: Session = Depends(get_db)):
+    """Get all assemblies, optionally filtered by status."""
+    query = db.query(Assembly)
+    if status:
+        query = query.filter(Assembly.status == status)
+    assemblies = query.order_by(Assembly.created_at.desc()).all()
     return [get_assembly_with_components(db, a.id) for a in assemblies]
 
 
@@ -100,6 +152,7 @@ def create_assembly(assembly_in: AssemblyCreate, db: Session = Depends(get_db)):
     # Create assembly
     assembly = Assembly(
         configuration_id=assembly_in.configuration_id,
+        order_reference=assembly_in.order_reference,
         notes=assembly_in.notes,
         status="reserved",
     )
@@ -125,6 +178,42 @@ def create_assembly(assembly_in: AssemblyCreate, db: Session = Depends(get_db)):
     return get_assembly_with_components(db, assembly.id)
 
 
+@router.patch("/{assembly_id}", response_model=AssemblyResponse)
+def update_assembly(
+    assembly_id: int, assembly_in: AssemblyUpdate, db: Session = Depends(get_db)
+):
+    """Update assembly notes or order reference."""
+    assembly = db.query(Assembly).filter(Assembly.id == assembly_id).first()
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
+
+    if assembly_in.order_reference is not None:
+        assembly.order_reference = assembly_in.order_reference
+    if assembly_in.notes is not None:
+        assembly.notes = assembly_in.notes
+
+    db.commit()
+    return get_assembly_with_components(db, assembly.id)
+
+
+@router.post("/{assembly_id}/start", response_model=AssemblyResponse)
+def start_assembly(assembly_id: int, db: Session = Depends(get_db)):
+    """Start building an assembly."""
+    assembly = db.query(Assembly).filter(Assembly.id == assembly_id).first()
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
+
+    if assembly.status != "reserved":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot start assembly with status '{assembly.status}'",
+        )
+
+    assembly.status = "building"
+    db.commit()
+    return get_assembly_with_components(db, assembly.id)
+
+
 @router.post("/{assembly_id}/complete", response_model=AssemblyResponse)
 def complete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     """Complete an assembly - consume reserved components."""
@@ -132,7 +221,7 @@ def complete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     if not assembly:
         raise HTTPException(status_code=404, detail="Assembly not found")
 
-    if assembly.status != "reserved":
+    if assembly.status not in ("reserved", "building"):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot complete assembly with status '{assembly.status}'",
@@ -156,6 +245,26 @@ def complete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     return get_assembly_with_components(db, assembly.id)
 
 
+@router.post("/{assembly_id}/ship", response_model=AssemblyResponse)
+def ship_assembly(assembly_id: int, db: Session = Depends(get_db)):
+    """Mark an assembly as shipped."""
+    assembly = db.query(Assembly).filter(Assembly.id == assembly_id).first()
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
+
+    if assembly.status != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot ship assembly with status '{assembly.status}'",
+        )
+
+    assembly.status = "shipped"
+    assembly.shipped_at = datetime.now(timezone.utc)
+
+    db.commit()
+    return get_assembly_with_components(db, assembly.id)
+
+
 @router.post("/{assembly_id}/cancel", response_model=AssemblyResponse)
 def cancel_assembly(assembly_id: int, db: Session = Depends(get_db)):
     """Cancel an assembly - release reserved components."""
@@ -163,7 +272,7 @@ def cancel_assembly(assembly_id: int, db: Session = Depends(get_db)):
     if not assembly:
         raise HTTPException(status_code=404, detail="Assembly not found")
 
-    if assembly.status != "reserved":
+    if assembly.status not in ("reserved", "building"):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot cancel assembly with status '{assembly.status}'",
@@ -192,9 +301,9 @@ def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     if not assembly:
         raise HTTPException(status_code=404, detail="Assembly not found")
 
-    if assembly.status == "reserved":
+    if assembly.status in ("reserved", "building"):
         raise HTTPException(
-            status_code=400, detail="Cannot delete reserved assembly. Cancel it first."
+            status_code=400, detail="Cannot delete active assembly. Cancel it first."
         )
 
     # Delete assembly components

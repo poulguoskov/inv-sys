@@ -38,11 +38,32 @@ export interface ItemUpdate {
   lead_time_days?: number | null;
 }
 
+export interface ConfigurationComponent {
+  id: number;
+  item_id: number;
+  quantity: number;
+  item_name: string | null;
+  item_sku: string | null;
+}
+
 export interface Configuration {
   id: number;
   name: string;
   description: string | null;
+  archived: boolean;
   created_at: string;
+  components: ConfigurationComponent[];
+}
+
+export interface ConfigurationCreate {
+  name: string;
+  description?: string | null;
+  components?: { item_id: number; quantity: number }[];
+}
+
+export interface ConfigurationUpdate {
+  name?: string;
+  description?: string | null;
 }
 
 export interface AssemblyComponent {
@@ -124,9 +145,88 @@ export const api = {
     if (!res.ok) throw new Error("Failed to delete item");
   },
 
-  async getConfigurations(): Promise<Configuration[]> {
-    const res = await fetch(`${API_BASE}/configurations/`);
+  // Configurations
+  async getConfigurations(archived?: boolean): Promise<Configuration[]> {
+    const url = archived !== undefined
+      ? `${API_BASE}/configurations/?archived=${archived}`
+      : `${API_BASE}/configurations/`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch configurations");
+    return res.json();
+  },
+
+  async getConfiguration(id: number): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${id}`);
+    if (!res.ok) throw new Error("Failed to fetch configuration");
+    return res.json();
+  },
+
+  async createConfiguration(config: ConfigurationCreate): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error("Failed to create configuration");
+    return res.json();
+  },
+
+  async updateConfiguration(id: number, config: ConfigurationUpdate): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error("Failed to update configuration");
+    return res.json();
+  },
+
+  async archiveConfiguration(id: number): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${id}/archive`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to archive configuration");
+    return res.json();
+  },
+
+  async unarchiveConfiguration(id: number): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${id}/unarchive`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to unarchive configuration");
+    return res.json();
+  },
+
+  async duplicateConfiguration(id: number): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${id}/duplicate`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to duplicate configuration");
+    return res.json();
+  },
+
+  async addConfigurationComponent(
+    configId: number,
+    component: { item_id: number; quantity: number }
+  ): Promise<Configuration> {
+    const res = await fetch(`${API_BASE}/configurations/${configId}/components`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(component),
+    });
+    if (!res.ok) throw new Error("Failed to add component");
+    return res.json();
+  },
+
+  async removeConfigurationComponent(
+    configId: number,
+    componentId: number
+  ): Promise<Configuration> {
+    const res = await fetch(
+      `${API_BASE}/configurations/${configId}/components/${componentId}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) throw new Error("Failed to remove component");
     return res.json();
   },
 

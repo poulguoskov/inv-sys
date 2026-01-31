@@ -13,7 +13,6 @@ import {
   Copy,
   Archive,
   ArchiveRestore,
-  Trash2,
 } from "lucide-react";
 import { ConfigurationFormDialog } from "@/components/ConfigurationFormDialog";
 

@@ -1,8 +1,6 @@
 from datetime import datetime
-
 from sqlalchemy import String, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.models.base import Base
 
 
@@ -14,6 +12,8 @@ class Assembly(Base):
         ForeignKey("configurations.id"), nullable=True
     )
     status: Mapped[str] = mapped_column(String(50), default="reserved")
+    order_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    shipped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

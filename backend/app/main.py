@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.items import router as items_router
 from app.api.configurations import router as configurations_router
 from app.api.assemblies import router as assemblies_router
-from app.core.config import settings
 
 app = FastAPI(title="inv-sys", version="0.1.0")
 

@@ -4,12 +4,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.items import router as items_router
 from app.api.configurations import router as configurations_router
 from app.api.assemblies import router as assemblies_router
+from app.core.config import settings
 
 app = FastAPI(title="inv-sys", version="0.1.0")
 
+origins = [
+    "http://localhost:5173",
+    "https://inv.pgskov.tech",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
